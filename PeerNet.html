@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"></meta>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="cache-control" content="max-age=31536000"></meta>
+  <title>Browser Peer Internet</title>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.1/dist/peerjs.min.js"></script>
+</head>
+<body id="root">
+    <p>
+      with browser web hosting we empower users by allowing them to host entire applications directly within their web browsers. Here’s how it works:
+
+      Decentralization: Unlike traditional centralized servers, where applications are hosted on remote servers, ChannelWeb embraces decentralization. Users become both hosts and consumers, creating a distributed network of interconnected peers.
+      
+      Peer-to-Peer Architecture: Each browser acts as a peer, collaborating with others. When a user accesses an application, their browser connects to other peers in the network. These peers collectively handle application responsibilities, distributing the load seamlessly.
+      
+      Code in HTML: All application code is written in HTML. This choice ensures compatibility across browsers and simplifies development. Whether it’s a simple webpage or a complex web app, everything resides in HTML format.
+      
+      BrowserPeerNet: Think of this as an alternative to the traditional Internet. Instead of relying on centralized servers, we create a dynamic network of browser peers. It’s a community-driven, efficient, and accessible ecosystem.
+    </p>
+    <p>
+        <b>Instructions:</b>
+        <br>
+        1. Both peers need to enter each other's peer IDs in the "Enter other peer's ID" field.
+        <br>
+        2. Click the "Connect" button to establish a connection.
+        <br>
+        3. Once the connection is established, you can send messages to each other.
+    </p>
+  <div id="userId">Your ID: </div>
+  <div>
+    <button id="connectButton">Connect</button>
+    <input type="text" id="otherPeerId" placeholder="Enter other peer's ID">
+  </div>
+  <div>
+    <button id="inviteByEmailButton">Invite by Email</button>
+    <input type="email" id="inviteByEmailInput" placeholder="Enter recipient's email address">
+  </div>
+  <div>
+    <button id="requestDataButton">Request File</button>
+    <input type="text" id="filename" placeholder="Enter the filename">
+  </div>
+  <div>
+    <button id="emailAppButton">Email the App</button>
+  </div>
+  <div>
+    <button onclick="serveOnLocalNetwork">Serve App on Local Wifi</button>
+    <input type="file" placeholder="App File Name to serve on local wifi">
+  </div>
+  <script type="text/javascript">
+    function serveOnLocalNetwork(){
+
+    }
+  </script>
+  <div>
+    <button onclick="openInNewTab()">Open App in New Tab</button>
+    <button onclick="openInNewWindow()">Open App in New Window</button>
+    <script type="text/javascript">
+      function openInNewTab() {
+        const currentURL = window.location.href;
+        const newURL = `${currentURL}?peerId=${peer.id}`;
+        window.open(newURL, '_tab');
+      }
+      function openInNewWindow() {
+        const currentURL = window.location.href;
+        const newURL = `${currentURL}?peerId=${peer.id}`;
+        window.open(newURL, '_blank');
+      }
+    </script>
+  </div>
+  <div>
+    <button onclick="loadFile()">Load File into Servable Memory</button>
+    <input type="file" id="fileInput">
+  </div>
+  <div id="messageArea">
+    <div id="incomingMessages">Incoming Messages:</div>
+    <div id="outgoingMessages">Outgoing Messages:</div>
+
+    <input type="text" id="messageInput" placeholder="Enter your message">
+    <button id="sendMessageButton">Send Message</button>
+  </div>
+  <div>
+      <div id="emailBody"></div>
+  </div>
+  <script type="text/javascript">
+    function preventRefresh() {
+      // neverrefresh();
+      return `Are you sure you want to stop web hosting applications? You might crash others.`;
+    };
+    window.onbeforeunload = preventRefresh;
+    // Create a PeerJS instance
+    const peer = new Peer();
+    const userIdElement = document.getElementById('userId');
+    const otherPeerIdInput = document.getElementById('otherPeerId');
+    const connectButton = document.getElementById('connectButton');
+    const incomingMessagesElement = document.getElementById('incomingMessages');
+    const outgoingMessagesElement = document.getElementById('outgoingMessages');
+    const messageInput = document.getElementById('messageInput');
+    const sendMessageButton = document.getElementById('sendMessageButton');
+    // Extract peer ID from URL query params
+    const urlParams = new URLSearchParams(window.location.search);
+    const peerIdFromUrl = urlParams.get('peerId');
+    document.getElementById("otherPeerId").value = peerIdFromUrl;
+
+    // Declare the dataConnection variable outside of the open event listener
+    let dataConnection;
+
+    const channels = {
+      "PeerDNS:": function(data, input){
+        console.log(`
+          UNPROGRAMMED
+
+          PeerDNS searches through all peers
+          to find a domain hosted on the peer node.
+        `)
+      },
+      "PeerConnect:": function(data, input){
+        console.log(`
+          when peer connects, it sends the peer id to PeerConnect:
+          so it confirms the connection
+        `);
+      },
+      "ReceiveChat": function(data,input){
+        // Display incoming message
+        console.log("chat channel");
+        const iframeElement = document.createElement("iframe");
+          // const incomingMessageElement = document.createElement('p');
+          // incomingMessageElement.textContent = `Incoming: ${data}`;
+          let msgHTML = "<!DOCTYPE html><html><body>"+ input +"</body></html>";
+          // const appHTMLdataURL = 'data:text/html;' + encodeURIComponent(msgHTML);
+          const appHTMLdataURL = 'data:text/html;charset=utf-8,'+msgHTML;
+        iframeElement.src = appHTMLdataURL
+        incomingMessagesElement.appendChild(iframeElement);
+      },
+      "SendChat:": function(data, input){
+        channels["ReceiveChat"](data);
+        dataConnection.send("ReceiveChat:"+data);
+      },
+      "GetFile:":function(data, input){
+        const filename = data.slice("GetFile:".length);
+        if (files.hasOwnProperty(filename)) {
+          const filedata = files[filename];
+          dataConnection.send(`ReceiveFile:`+filedata);
+        }
+        channels["Chat:"](data);
+      },
+      "ReceiveFile:": function(data, input){
+        console.log("file received");
+        console.log(data);
+      },
+    };
+    function channelRouter(data) {
+      // Filter incoming messages to display only user-initiated messages
+      const end = data.indexOf(":");
+      const channel = data.slice(0,end);
+      const input = data.slice(end);
+
+      (channels.hasOwnProperty(channel)
+      && channels[channel](data,input))
+      // || (channelFound !== true && console.log("channel not found"))
+    }
+    // Listen for the open event
+    peer.on('open', () => {
+      // Get the peer ID and update the UI
+      const peerId = peer.id;
+      userIdElement.innerHTML += `Your Peer ID: ${peerId}`;
+    });
+    // Handle connection requests
+    peer.on('connection', (dataConnection) => {
+      console.log('Received connection from peer:', dataConnection.peer);
+      // Send connection acknowledgement
+      // dataConnection.send('Chat: Connection acknowledged');
+      // Listen for incoming data
+      dataConnection.on('data', channelRouter);
+      // Handle connection closing
+      dataConnection.on('close', () => {
+        console.log('Connection closed with peer:', dataConnection.peer);
+      });
+    });
+    // Connect to other peer
+    connectButton.addEventListener('click', () => {
+      const otherPeerId = otherPeerIdInput.value;
+      dataConnection = peer.connect(otherPeerId);
+      dataConnection.on('open', () => {
+          incomingMessagesElement.textContent = `Connected to peer with ID: ${otherPeerId}`;
+          console.log('Connected to peer:', otherPeerId);
+          // Send connection acknowledgement
+          // dataConnection.send('Connection acknowledged');
+          // Listen for incoming data
+          dataConnection.on('data', channelRouter);
+          // Handle connection closing
+          dataConnection.on('close', () => {
+            console.log('Connection closed with peer:', dataConnection.peer);
+          });
+      });
+    });
+    sendMessageButton.addEventListener('click', () => {
+        const message = messageInput.value;
+        messageInput.value = ''; // Clear the input field
+
+        if (dataConnection) {
+            // Send message to the connected peer
+            dataConnection.send(`ReceiveChat: ${message}`);
+
+            // Display outgoing message
+            const outgoingMessageElement = document.createElement('p');
+            outgoingMessageElement.textContent = `Outgoing: Chat: ${message}`;
+            outgoingMessagesElement.appendChild(outgoingMessageElement);
+        } else {
+            console.log('Connection not established yet. Please wait for connection to be established.');
+        }
+    });
+  // Send invite by email
+    const inviteByEmailInput = document.getElementById('inviteByEmailInput');
+    const inviteByEmailButton = document.getElementById('inviteByEmailButton');
+    inviteByEmailButton.addEventListener('click', () => {
+        const peerId = peer.id;
+        const emailAddress = inviteByEmailInput.value;
+        // Send email with peer ID
+        const emailSubject = "PeerJS invitation";
+        const emailBody = `Hi there,
+
+        I'm inviting you to connect with me using PeerJS. My peer ID is: ${peerId}.
+
+        Please enter my peer ID in the "Enter other peer's ID" field and click the "Connect" button to establish a connection.
+
+        Thanks,
+        [Your name]`;
+
+        window.location.href = `mailto:${emailAddress}?subject=${emailSubject}&body=${emailBody}`;
+    });
+    function replicateAppSendEmail() {
+      // Get the HTML content of the application
+      const appHTML = document.documentElement.outerHTML;
+      const emailAddress = inviteByEmailInput.value;
+      const peerId = peer.id;
+      const appHTMLdataURL = 'data:text/html,' + encodeURIComponent(appHTML);
+      // Prepare the email subject and body
+      const emailSubject = 'ChannelWeb Application Link';
+      const emailBody = `
+      <br></br>
+      <h3>Email the application link below:<h3>
+      <br><br><br>
+      Connect to my account by entering the peer id in the application.
+      ${peerId}
+      <br><br><br>
+      Place the application link in a new browser tab.
+      <br><br><br>
+      ${appHTMLdataURL}`;
+      // Send the email using a suitable email sending method
+      // (e.g., window.location.href for mailto links)
+      // window.location.href = `mailto:${emailAddress}?subject=${emailSubject}&body=${emailBody}`;
+      document.getElementById("emailBody").innerHTML = emailBody;
+    }
+    const emailAppButton = document.getElementById('emailAppButton');
+    emailAppButton.addEventListener('click', replicateAppSendEmail);
+    function generateRequest(){
+      console.log("generateRequest");
+      if (dataConnection) {
+        console.log("data connection exist");
+        const filename = document.getElementById("filename").value;
+        console.log('GetFile:'+filename);
+        dataConnection.send('GetFile:'+filename);
+      } else {
+        console.log('Connection not established yet. Please wait for connection to be established.');
+      }
+    }
+
+    const requestDataButton = document.getElementById("requestDataButton");
+    requestDataButton.addEventListener('click', generateRequest);
+
+    let files = {};
+
+    function loadFile() {
+      let file = document.getElementById('fileInput').files[0];
+      let reader = new FileReader();
+      reader.onload = function() {
+        files[file.name] = reader.result;
+        console.log(files);
+      };
+      reader.readAsText(file);
+    }
+  </script>
+</body>
+</html>
