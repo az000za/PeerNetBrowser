@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Peer Information via Email</title>
+</head>
+<body>
+    <form id="emailForm">
+        <label for="emailAddresses">Enter email addresses (comma-separated):</label>
+        <input type="text" id="emailAddresses" placeholder="example1@example.com, example2@example.com" required>
+        <br>
+        <textarea id="peerInfo" rows="5" cols="40" placeholder="Enter peer information (e.g., SDP offer or answer)" required></textarea>
+        <br>
+        <button type="button" onclick="sendEmails()">Send Peer Info via Email</button>
+    </form>
+
+    <script>
+        function sendEmails() {
+            const emailAddresses = document.getElementById('emailAddresses').value.split(',').map(email => email.trim());
+            const peerInfo = document.getElementById('peerInfo').value;
+
+            // Create a mailto link with pre-filled subject and body
+            const subject = 'WebRTC Peer Information';
+            const body = peerInfo;
+
+            const mailtoLink = `mailto:${emailAddresses.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            // Open the user's default email client
+            window.location.href = mailtoLink;
+        }
+    </script>
+</body>
+</html>
